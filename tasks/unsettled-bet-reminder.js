@@ -1,5 +1,5 @@
 const db = require('../utils/db');
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 async function unsettledBetReminder(client) {
     console.log('🔔 Checking for unsettled bets...');
@@ -10,26 +10,32 @@ async function unsettledBetReminder(client) {
         today.setHours(0, 0, 0, 0); // Set to midnight of today
         const todayTimestamp = today.getTime();
 
+        console.log(`Today at midnight: ${today.toLocaleString('en-US', { timeZone: 'America/New_York' })}`);
+
         const { rows: unsettledBets } = await db.query(
             `SELECT DISTINCT cnr.user_id, cnr.username, cnr.tracker_channel_id, COUNT(b.id) as bet_count
              FROM capper_info cnr
              JOIN bets b ON cnr.user_id = b.user_id
-             WHERE cnr.active = 'yes' AND b.result = 'pending' AND b.timestamp < $1
+             WHERE cnr.active = 'yes' AND b.result = 'pending' AND CAST(b.timestamp AS BIGINT) < $1
              GROUP BY cnr.user_id, cnr.username, cnr.tracker_channel_id`,
             [todayTimestamp]
         );
 
+        console.log(`Found ${unsettledBets.length} cappers with unsettled bets\n`);
+
         for (const row of unsettledBets) {
             const { user_id, username, tracker_channel_id, bet_count } = row;
 
+            console.log(`Processing: ${username} (${user_id}) - ${bet_count} unsettled bets`);
+
             if (!tracker_channel_id) {
-                console.warn(`⚠️ No tracker channel set for ${username}`);
+                console.warn(`  ⚠️ No tracker channel set for ${username}`);
                 continue;
             }
 
             const trackerChannel = await client.channels.fetch(tracker_channel_id).catch(() => null);
             if (!trackerChannel) {
-                console.warn(`⚠️ Could not fetch tracker channel ${tracker_channel_id} for ${username}`);
+                console.warn(`  ⚠️ Could not fetch tracker channel ${tracker_channel_id}`);
                 continue;
             }
 
@@ -39,10 +45,18 @@ async function unsettledBetReminder(client) {
                 .setColor(0xFFA500)
                 .setTimestamp();
 
+            const doneButton = new ButtonBuilder()
+                .setCustomId(`unsettled_done_${user_id}`)
+                .setLabel('Done')
+                .setStyle(ButtonStyle.Success);
+
+            const row = new ActionRowBuilder().addComponents(doneButton);
+
             try {
-                await trackerChannel.send({ content: `<@${user_id}>`, embeds: [embed] });
+                await trackerChannel.send({ content: `<@${user_id}>`, embeds: [embed], components: [row] });
+                console.log(`  ✅ Message sent`);
             } catch (err) {
-                console.error(`Failed to send reminder for ${username}:`, err.message);
+                console.error(`  ❌ Failed to send reminder:`, err.message);
             }
         }
 
