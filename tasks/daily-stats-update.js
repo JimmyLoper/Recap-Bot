@@ -34,6 +34,8 @@ async function dailyStatsUpdate(client) {
             const stats = await calculateCapperStats(user_id);
             if (!stats) continue;
 
+            console.log(`${username}: Yesterday=${stats.units_won_yesterday}, YTD=${stats.units_won_ytd}, Overall=${stats.units_won_overall}`);
+
             // Cache stats in DB - updates latest record for this capper
             await db.query(
                 `INSERT INTO capper_tracker_stats 
