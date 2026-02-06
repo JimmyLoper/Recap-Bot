@@ -21,36 +21,36 @@ async function dailyStatsUpdate(client) {
 
         // Fetch all active cappers
         const { rows: cappers } = await db.query(
-            `SELECT user_id, username, emoji FROM capper_info 
+            `SELECT user_id, capper_name, emoji FROM capper_info 
              WHERE active = 'yes'`
         );
 
         const today = new Date().toISOString().split('T')[0];
 
         for (const capper of cappers) {
-            const { user_id, username, emoji } = capper;
+            const { user_id, capper_name, emoji } = capper;
 
             // Calculate fresh stats
             const stats = await calculateCapperStats(user_id);
             if (!stats) continue;
 
-            console.log(`${username}: Yesterday=${stats.units_won_yesterday}, YTD=${stats.units_won_ytd}, Overall=${stats.units_won_overall}`);
+            console.log(`${capper_name}: Yesterday=${stats.units_won_yesterday}, YTD=${stats.units_won_ytd}, Overall=${stats.units_won_overall}`);
 
             // Cache stats in DB - updates latest record for this capper
             await db.query(
                 `INSERT INTO capper_tracker_stats 
-                (user_id, username, stats_date, units_won_yesterday, units_won_7days, units_won_month, units_won_ytd, units_won_overall)
+                (user_id, capper_name, stats_date, units_won_yesterday, units_won_7days, units_won_month, units_won_ytd, units_won_overall)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                 ON CONFLICT (user_id) 
                 DO UPDATE SET 
-                    username = $2,
+                    capper_name = $2,
                     stats_date = $3,
                     units_won_yesterday = $4,
                     units_won_7days = $5,
                     units_won_month = $6,
                     units_won_ytd = $7,
                     units_won_overall = $8`,
-                [user_id, username, today, stats.units_won_yesterday, stats.units_won_7days, stats.units_won_month, stats.units_won_ytd, stats.units_won_overall]
+                [user_id, capper_name, today, stats.units_won_yesterday, stats.units_won_7days, stats.units_won_month, stats.units_won_ytd, stats.units_won_overall]
             );
 
             // Build embed with left-aligned list format
@@ -64,7 +64,7 @@ async function dailyStatsUpdate(client) {
             ].join('\n');
 
             const embed = new EmbedBuilder()
-                .setTitle(`${emoji || '📊'} ${username}'s Daily Stats`)
+                .setTitle(`${emoji || '📊'} ${capper_name}'s Daily Stats`)
                 .setColor(0x3498db)
                 .setDescription(statsText)
                 .setTimestamp();
@@ -73,7 +73,7 @@ async function dailyStatsUpdate(client) {
             try {
                 await recapChannel.send({ embeds: [embed] });
             } catch (err) {
-                console.error(`Failed to send stats embed for ${username}:`, err);
+                console.error(`Failed to send stats embed for ${capper_name}:`, err);
             }
         }
 

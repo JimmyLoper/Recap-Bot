@@ -5,8 +5,6 @@ async function calculateCapperStats(userId) {
     today.setHours(0, 0, 0, 0); // Local midnight
     const todayMs = today.getTime();
 
-    console.log(`[TIMEZONE DEBUG] Today: ${today.toLocaleString('en-US', { timeZone: 'America/New_York' })} EST | ${today.toISOString()} UTC | ${todayMs}ms`);
-
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayMs = yesterday.getTime();
