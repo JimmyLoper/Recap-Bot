@@ -28,22 +28,22 @@ client.once('ready', () => {
     console.log(`✅ Logged in as ${client.user.tag}`);
     
     // ============================================================
-    // UNSETTLED BET REMINDER - Runs at 10:00 AM EST (3:00 PM UTC)
+    // UNSETTLED BET REMINDER - Runs at 10:00 AM EST
     // ============================================================
-    cron.schedule('0 15 * * *', () => {
+    cron.schedule('0 10 * * *', () => {
         unsetledBetReminder(client).catch(err => console.error('Reminder task error:', err));
     });
 
     // ============================================================
-    // DAILY STATS UPDATE - Runs at 11:00 AM EST (4:00 PM UTC) every day
+    // DAILY STATS UPDATE - Runs at 11:00 AM EST every day
     // ============================================================
-    cron.schedule('0 16 * * *', () => {
+    cron.schedule('0 11 * * *', () => {
         dailyStatsUpdate(client).catch(err => console.error('Daily stats task error:', err));
     });
 
     console.log('📅 Scheduled tasks loaded');
-    console.log('  • Unsettled bet reminder: 10:00 AM EST (3:00 PM UTC)');
-    console.log('  • Daily stats update: 11:00 AM EST (4:00 PM UTC)');
+    console.log('  • Unsettled bet reminder: 10:00 AM EST');
+    console.log('  • Daily stats update: 11:00 AM EST');
 });
 
 // ============================================================
