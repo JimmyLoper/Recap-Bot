@@ -50,10 +50,10 @@ async function unsettledBetReminder(client) {
                 .setLabel('Done')
                 .setStyle(ButtonStyle.Success);
 
-            const row = new ActionRowBuilder().addComponents(doneButton);
+            const buttonRow = new ActionRowBuilder().addComponents(doneButton);
 
             try {
-                await trackerChannel.send({ content: `<@${user_id}>`, embeds: [embed], components: [row] });
+                await trackerChannel.send({ content: `<@${user_id}>`, embeds: [embed], components: [buttonRow] });
                 console.log(`  ✅ Message sent`);
             } catch (err) {
                 console.error(`  ❌ Failed to send reminder:`, err.message);
