@@ -1,3 +1,4 @@
 .env
 scripts/
 node_modules/
+commands/test.js
