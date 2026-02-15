@@ -8,7 +8,7 @@ module.exports = {
             
             // Send confirmation to user
             await interaction.reply({
-                content: '✅ Reminder dismissed. Great job settling those bets!',
+                content: '✅ Reminder dismissed.',
                 ephemeral: true
             });
         } catch (err) {
