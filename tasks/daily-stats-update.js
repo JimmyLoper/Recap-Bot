@@ -27,6 +27,15 @@ async function dailyStatsUpdate(client) {
 
         const today = new Date().toISOString().split('T')[0];
 
+        // Initialize team totals
+        const teamTotals = {
+            yesterday: 0,
+            sevenDays: 0,
+            month: 0,
+            ytd: 0,
+            overall: 0
+        };
+
         for (const capper of cappers) {
             const { user_id, username, capper_name, emoji } = capper;
 
@@ -35,6 +44,13 @@ async function dailyStatsUpdate(client) {
             if (!stats) continue;
 
             console.log(`${capper_name}: Yesterday=${stats.units_won_yesterday}, YTD=${stats.units_won_ytd}, Overall=${stats.units_won_overall}`);
+
+            // Add to team totals
+            teamTotals.yesterday += stats.units_won_yesterday;
+            teamTotals.sevenDays += stats.units_won_7days;
+            teamTotals.month += stats.units_won_month;
+            teamTotals.ytd += stats.units_won_ytd;
+            teamTotals.overall += stats.units_won_overall;
 
             // Cache stats in DB - updates latest record for this capper
             await db.query(
@@ -75,6 +91,29 @@ async function dailyStatsUpdate(client) {
             } catch (err) {
                 console.error(`Failed to send stats embed for ${capper_name}:`, err);
             }
+        }
+
+        // Send team recap with aggregated stats
+        const currentYear = new Date().getFullYear();
+        const teamStatsText = [
+            `Yesterday:     ${teamTotals.yesterday > 0 ? '+' : ''}${teamTotals.yesterday}u`,
+            `Last 7 Days:   ${teamTotals.sevenDays > 0 ? '+' : ''}${teamTotals.sevenDays}u`,
+            `This Month:    ${teamTotals.month > 0 ? '+' : ''}${teamTotals.month}u`,
+            `Year to Date:  ${teamTotals.ytd > 0 ? '+' : ''}${teamTotals.ytd}u`,
+            ...(currentYear >= 2027 ? [`Overall:       ${teamTotals.overall > 0 ? '+' : ''}${teamTotals.overall}u`] : [])
+        ].join('\n');
+
+        const teamEmbed = new EmbedBuilder()
+            .setTitle('🎯 Playmakers Team Recap')
+            .setColor(0x2ECC71)
+            .setDescription(teamStatsText)
+            .setTimestamp();
+
+        try {
+            await recapChannel.send({ embeds: [teamEmbed] });
+            console.log('📊 Team recap sent');
+        } catch (err) {
+            console.error('Failed to send team recap:', err);
         }
 
         console.log('✅ Daily stats update complete');
