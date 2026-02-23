@@ -99,11 +99,11 @@ async function dailyStatsUpdate(client) {
 
         const currentYear = new Date().getFullYear();
         const teamStatsText = [
-            `Yesterday:     ${teamTotals.yesterday > 0 ? '+' : ''}${Number(teamTotals.yesterday.toFixed(2))}u`,
-            `Last 7 Days:   ${teamTotals.sevenDays > 0 ? '+' : ''}${Number(teamTotals.sevenDays.toFixed(2))}u`,
-            `This Month:    ${teamTotals.month > 0 ? '+' : ''}${Number(teamTotals.month.toFixed(2))}u`,
-            `Year to Date:  ${teamTotals.ytd > 0 ? '+' : ''}${Number(teamTotals.ytd.toFixed(2))}u`,
-            ...(currentYear >= 2027 ? [`Overall:       ${teamTotals.overall > 0 ? '+' : ''}${Number(teamTotals.overall.toFixed(2))}u`] : [])
+            `Yesterday:     ${teamTotals.yesterday > 0 ? '+' : ''}${teamTotals.yesterday.toFixed(2)}u`,
+            `Last 7 Days:   ${teamTotals.sevenDays > 0 ? '+' : ''}${teamTotals.sevenDays.toFixed(2)}u`,
+            `This Month:    ${teamTotals.month > 0 ? '+' : ''}${teamTotals.month.toFixed(2)}u`,
+            `Year to Date:  ${teamTotals.ytd > 0 ? '+' : ''}${teamTotals.ytd.toFixed(2)}u`,
+            ...(currentYear >= 2027 ? [`Overall:       ${teamTotals.overall > 0 ? '+' : ''}${teamTotals.overall.toFixed(2)}u`] : [])
         ].join('\n');
 
         const teamEmbed = new EmbedBuilder()
