@@ -59,13 +59,13 @@ client.once('ready', () => {
     // ============================================================
     // DAILY STATS UPDATE - Runs at 11:00 AM EST every day
     // ============================================================
-    cron.schedule('0 11 * * *', () => {
+    cron.schedule('0 12 * * *', () => {
         dailyStatsUpdate(client).catch(err => console.error('Daily stats task error:', err));
     });
 
     console.log('📅 Scheduled tasks loaded');
     console.log('  • Unsettled bet reminder: 10:00 AM EST');
-    console.log('  • Daily stats update: 11:00 AM EST');
+    console.log('  • Daily stats update: 12:00 PM EST');
 });
 
 // ============================================================

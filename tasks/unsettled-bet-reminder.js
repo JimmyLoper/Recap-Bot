@@ -41,7 +41,7 @@ async function unsettledBetReminder(client) {
 
             const embed = new EmbedBuilder()
                 .setTitle('⏳ Unsettled Bets Reminder')
-                .setDescription(`You have **${bet_count}** unsettled bet${bet_count > 1 ? 's' : ''} from yesterday. Please settle those before the recap at 11am!`)
+                .setDescription(`You have **${bet_count}** unsettled bet${bet_count > 1 ? 's' : ''} from yesterday. Please settle those before the recap at 12pm!`)
                 .setColor(0xFFA500)
                 .setTimestamp();
 
