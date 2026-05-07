@@ -20,6 +20,15 @@ async function calculateCapperStats(userId) {
     const yearStartMs = yearStart.getTime();
 
     try {
+        // Fetch this capper's tracking start date — falls back to 0 (all history) if not set
+        const { rows: capperRows } = await db.query(
+            `SELECT tracking_start FROM capper_info WHERE user_id = $1`,
+            [userId]
+        );
+        const trackingStartMs = capperRows[0]?.tracking_start
+            ? new Date(capperRows[0].tracking_start).getTime()
+            : 0;
+
         // Fetch all settled bets with date filtering in database
         const { rows } = await db.query(
             `SELECT 
@@ -30,8 +39,9 @@ async function calculateCapperStats(userId) {
                 CASE WHEN CAST(timestamp AS BIGINT) >= $6 AND CAST(timestamp AS BIGINT) < $3 THEN 1 ELSE 0 END as is_ytd
              FROM bets 
              WHERE user_id = $1 AND result IN ('win', 'loss')
+               AND CAST(timestamp AS BIGINT) >= $7
              ORDER BY timestamp DESC`,
-            [userId, yesterdayMs, todayMs, sevenDaysAgoMs, monthStartMs, yearStartMs]
+            [userId, yesterdayMs, todayMs, sevenDaysAgoMs, monthStartMs, yearStartMs, trackingStartMs]
         );
 
         let unitsYesterday = 0;
