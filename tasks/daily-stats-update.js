@@ -107,7 +107,7 @@ async function dailyStatsUpdate(client) {
         ].join('\n');
 
         const teamEmbed = new EmbedBuilder()
-            .setTitle('🎯 Playmakers Team Recap')
+            .setTitle('Team Recap')
             .setColor(0x2ECC71)
             .setDescription(teamStatsText)
             .setTimestamp();
