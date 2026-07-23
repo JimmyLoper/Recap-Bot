@@ -54,10 +54,10 @@
     }
     tbody td { padding: 10px 16px; border-bottom: 1px solid #f0f0f0; white-space: nowrap; }
     tbody tr:nth-child(even) { background: #fafafa; }
-    .result-win { color: #1a8a3f; font-weight: 600; }
-    .result-loss { color: #c0392b; font-weight: 600; }
-    .result-push { color: #888888; font-weight: 600; }
-    .result-pending { color: #b8860b; font-weight: 600; }
+    .cell-win { background: #d9f2e3; color: #157347; font-weight: 600; }
+    .cell-loss { background: #fbe1df; color: #b02a26; font-weight: 600; }
+    .cell-push { background: #ececec; color: #666666; font-weight: 600; }
+    .cell-pending { background: #fff3cd; color: #8a6d00; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -97,7 +97,7 @@
                     <th>Description</th>
                     <th>Odds</th>
                     <th>Risk</th>
-                    <th>Payout</th>
+                    <th>Units +/-</th>
                     <th>Result</th>
                 </tr>
             </thead>

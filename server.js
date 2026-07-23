@@ -173,14 +173,21 @@ function renderCapperPage(capper, stats, bets) {
         });
         const resultLabel = bet.result.charAt(0).toUpperCase() + bet.result.slice(1);
 
+        // Per-bet units gained/lost: win -> +payout, loss -> -risk, push/pending -> 0
+        // (same convention used everywhere else in the codebase, e.g. stats-calculator.js).
+        const rowUnits = bet.result === 'win' ? parseFloat(bet.payout)
+            : bet.result === 'loss' ? -parseFloat(bet.risk)
+            : 0;
+        const rowUnitsLabel = `${rowUnits > 0 ? '+' : ''}${rowUnits.toFixed(2)}`;
+
         return `<tr>
             <td>${date}</td>
             <td>${escapeHtml(bet.sport || '')}</td>
             <td>${escapeHtml(bet.bet_description)}</td>
             <td>${Number(bet.odds)}</td>
-            <td>${parseFloat(bet.risk)}u</td>
-            <td>${parseFloat(bet.payout)}u</td>
-            <td class="result-${bet.result}">${resultLabel}</td>
+            <td>${parseFloat(bet.risk).toFixed(2)}</td>
+            <td class="cell-${bet.result}">${rowUnitsLabel}</td>
+            <td class="cell-${bet.result}">${resultLabel}</td>
         </tr>`;
     }).join('\n');
 
