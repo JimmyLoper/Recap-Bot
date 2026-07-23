@@ -183,7 +183,7 @@ function renderCapperPage(capper, stats, bets) {
         return `<tr>
             <td>${date}</td>
             <td>${escapeHtml(bet.sport || '')}</td>
-            <td>${escapeHtml(bet.bet_description)}</td>
+            <td class="desc">${escapeHtml(bet.bet_description)}</td>
             <td>${Number(bet.odds)}</td>
             <td>${parseFloat(bet.risk).toFixed(2)}</td>
             <td class="cell-${bet.result}">${rowUnitsLabel}</td>
