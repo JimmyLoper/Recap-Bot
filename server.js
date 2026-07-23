@@ -1,10 +1,8 @@
-// Run this once in your DB to add token support:
-// ALTER TABLE capper_info ADD COLUMN IF NOT EXISTS token TEXT UNIQUE;
-
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const db = require('./utils/db');
 
 const app = express();
@@ -48,6 +46,90 @@ app.get('/history', async (req, res) => {
         return res.status(500).send(renderErrorPage('Something went wrong loading this page'));
     }
 });
+
+// ------------------------------------------------------------
+// HTTP Basic Auth guard for /admin. Using the Authorization header
+// (browser's native login prompt) instead of a ?key= query param means
+// the secret never appears in the URL — so it isn't written to server/
+// proxy access logs, browser history, or leaked via the Referer header
+// if the admin clicks a /history link from this page.
+// ------------------------------------------------------------
+function requireAdminAuth(req, res, next) {
+    const adminKey = process.env.ADMIN_KEY;
+    const authHeader = req.headers.authorization || '';
+
+    const challenge = () => {
+        res.set('WWW-Authenticate', 'Basic realm="Admin"');
+        return res.status(401).send('Unauthorized');
+    };
+
+    if (!adminKey || !authHeader.startsWith('Basic ')) {
+        return challenge();
+    }
+
+    // Basic Auth sends "username:password" base64-encoded; only the
+    // password half is checked against ADMIN_KEY (username is ignored).
+    const decoded = Buffer.from(authHeader.slice(6), 'base64').toString('utf8');
+    const password = decoded.slice(decoded.indexOf(':') + 1);
+
+    if (!safeCompare(password, adminKey)) {
+        return challenge();
+    }
+
+    next();
+}
+
+// ------------------------------------------------------------
+// GET /admin
+// Lists every capper with a clickable /history link (or a "no link yet"
+// note). Protected by requireAdminAuth above.
+// ------------------------------------------------------------
+app.get('/admin', requireAdminAuth, async (req, res) => {
+    try {
+        const { rows: cappers } = await db.query(
+            `SELECT capper_name, username, user_id, token FROM capper_info ORDER BY capper_name ASC`
+        );
+
+        return res.send(renderAdminPage(cappers));
+    } catch (err) {
+        console.error('Error in /admin route:', err);
+        return res.status(500).send(renderErrorPage('Something went wrong loading this page'));
+    }
+});
+
+// Constant-time comparison to avoid leaking the secret's length/content via response timing.
+function safeCompare(provided, expected) {
+    const providedBuf = Buffer.from(provided);
+    const expectedBuf = Buffer.from(expected);
+    if (providedBuf.length !== expectedBuf.length) return false;
+    return crypto.timingSafeEqual(providedBuf, expectedBuf);
+}
+
+function renderAdminPage(cappers) {
+    const rows = cappers.map(c => {
+        if (c.token) {
+            return `<li><a href="/history?token=${encodeURIComponent(c.token)}">${escapeHtml(c.capper_name)}</a></li>`;
+        }
+        return `<li>${escapeHtml(c.capper_name)} <span class="no-link">— No link generated yet</span></li>`;
+    }).join('\n');
+
+    return `<!DOCTYPE html>
+<html><head><title>Admin — Capper Links</title>
+<style>
+    body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 0 20px; color: #222; }
+    h1 { font-size: 22px; }
+    ul { list-style: none; padding: 0; margin: 0; }
+    li { padding: 10px 0; border-bottom: 1px solid #eee; }
+    a { color: #1a73e8; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .no-link { color: #888; }
+</style>
+</head>
+<body>
+<h1>Capper Links</h1>
+<ul>${rows}</ul>
+</body></html>`;
+}
 
 // ------------------------------------------------------------
 // Compute summary stats from a capper's bets.
