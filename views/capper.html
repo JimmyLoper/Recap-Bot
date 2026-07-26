@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Capper's link token, needed to authorize inline-edit PUT requests without exposing it in the URL/UI. -->
+<meta name="capper-token" content="{{TOKEN}}">
 <title>{{CAPPER_NAME}} — Bet History</title>
 <style>
     * { box-sizing: border-box; }
@@ -60,6 +62,7 @@
     thead th:nth-child(5) { width: 70px; }
     thead th:nth-child(6) { width: 100px; }
     thead th:nth-child(7) { width: 80px; }
+    thead th:nth-child(8) { width: 120px; }
     tbody td { padding: 10px 16px; border-bottom: 1px solid #f0f0f0; white-space: nowrap; }
     tbody td.desc { white-space: normal; word-break: break-word; }
     tbody tr:nth-child(even) { background: #fafafa; }
@@ -67,6 +70,13 @@
     .cell-loss { background: #fbe1df; color: #b02a26; font-weight: 600; }
     .cell-push { background: #ececec; color: #666666; font-weight: 600; }
     .cell-pending { background: #fff3cd; color: #8a6d00; font-weight: 600; }
+    /* Inline edit mode */
+    .cell-actions button { padding: 4px 10px; margin-right: 4px; font-size: 12px; border-radius: 4px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
+    .cell-actions button:hover { background: #f0f0f0; }
+    .cell-actions .save-btn { border-color: #157347; color: #157347; }
+    .cell-actions .cancel-btn { border-color: #b02a26; color: #b02a26; }
+    td input, td select { width: 100%; padding: 4px 6px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+    .row-error { color: #b02a26; font-size: 11px; margin-top: 4px; white-space: normal; }
 </style>
 </head>
 <body>
@@ -108,6 +118,7 @@
                     <th>Risk</th>
                     <th>Units +/-</th>
                     <th>Result</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -115,5 +126,175 @@
             </tbody>
         </table>
     </div>
+
+    <script>
+    (function () {
+        const token = document.querySelector('meta[name="capper-token"]').content;
+        const tbody = document.querySelector('table tbody');
+        if (!tbody) return;
+
+        const RESULT_OPTIONS = ['win', 'loss', 'push', 'pending'];
+
+        // Mirrors the server's per-row units formula (win: +payout, loss: -risk, else 0)
+        // so the display stays consistent after an inline edit without a page reload.
+        function computeUnitsLabel(result, payout, risk) {
+            const units = result === 'win' ? payout : result === 'loss' ? -risk : 0;
+            return `${units > 0 ? '+' : ''}${units.toFixed(2)}`;
+        }
+
+        function capitalize(str) {
+            return str.charAt(0).toUpperCase() + str.slice(1);
+        }
+
+        // Formats a raw ms timestamp as YYYY-MM-DD in America/New_York so the
+        // date input matches the same calendar day shown in display mode.
+        function toDateInputValue(timestampMs) {
+            const parts = new Intl.DateTimeFormat('en-CA', {
+                timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit'
+            }).formatToParts(new Date(timestampMs));
+            const map = Object.fromEntries(parts.map(p => [p.type, p.value]));
+            return `${map.year}-${map.month}-${map.day}`;
+        }
+
+        // Anchors the edited date at 17:00 UTC (noon EST / 1pm EDT) so the
+        // America/New_York calendar date always matches the input regardless of
+        // DST — avoids the day-shift bug this codebase's fix-bad-timestamps.js
+        // script had to patch after storing raw local midnight.
+        function dateInputToTimestamp(dateStr) {
+            const [y, m, d] = dateStr.split('-').map(Number);
+            return Date.UTC(y, m - 1, d, 17, 0, 0);
+        }
+
+        function escapeAttr(str) {
+            return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+        }
+
+        // Rebuilds a row's display cells from raw data and refreshes its cached
+        // data-* attributes (used both after a successful Save and on Cancel).
+        function renderDisplayRow(row, data) {
+            const resultKey = data.result.toLowerCase();
+
+            row.querySelector('.cell-date').textContent = new Date(Number(data.timestamp)).toLocaleDateString('en-US', {
+                timeZone: 'America/New_York', month: '2-digit', day: '2-digit', year: 'numeric'
+            });
+            row.querySelector('.cell-sport').textContent = data.sport;
+            row.querySelector('.cell-desc').textContent = data.desc;
+            row.querySelector('.cell-odds').textContent = data.odds;
+            row.querySelector('.cell-risk').textContent = Number(data.risk).toFixed(2);
+
+            const unitsCell = row.querySelector('.cell-units');
+            unitsCell.textContent = computeUnitsLabel(resultKey, Number(data.payout), Number(data.risk));
+            unitsCell.className = `cell-units cell-${resultKey}`;
+
+            const resultCell = row.querySelector('.cell-result');
+            resultCell.textContent = capitalize(resultKey);
+            resultCell.className = `cell-result cell-${resultKey}`;
+
+            row.querySelector('.cell-actions').innerHTML = '<button class="edit-btn" type="button">Edit</button>';
+
+            row.dataset.timestamp = data.timestamp;
+            row.dataset.sport = data.sport;
+            row.dataset.desc = data.desc;
+            row.dataset.odds = data.odds;
+            row.dataset.risk = data.risk;
+            row.dataset.payout = data.payout;
+            row.dataset.result = resultKey;
+        }
+
+        function enterEditMode(row) {
+            const d = row.dataset;
+
+            row.querySelector('.cell-date').innerHTML = `<input type="date" class="edit-date" value="${toDateInputValue(Number(d.timestamp))}">`;
+            row.querySelector('.cell-sport').innerHTML = `<input type="text" class="edit-sport" value="${escapeAttr(d.sport)}">`;
+            row.querySelector('.cell-desc').innerHTML = `<input type="text" class="edit-desc" value="${escapeAttr(d.desc)}">`;
+            row.querySelector('.cell-odds').innerHTML = `<input type="number" class="edit-odds" value="${d.odds}" step="1">`;
+            row.querySelector('.cell-risk').innerHTML = `<input type="number" class="edit-risk" value="${d.risk}" step="0.01" min="0">`;
+            // The "Units +/-" column is derived from payout, so edit mode swaps it
+            // for the raw payout input directly instead of adding an extra column.
+            row.querySelector('.cell-units').innerHTML = `<input type="number" class="edit-payout" value="${d.payout}" step="0.01" min="0">`;
+
+            const resultCell = row.querySelector('.cell-result');
+            resultCell.innerHTML = '';
+            const select = document.createElement('select');
+            select.className = 'edit-result';
+            RESULT_OPTIONS.forEach(opt => {
+                const optionEl = document.createElement('option');
+                optionEl.value = opt;
+                optionEl.textContent = capitalize(opt);
+                if (opt === d.result) optionEl.selected = true;
+                select.appendChild(optionEl);
+            });
+            resultCell.appendChild(select);
+
+            row.querySelector('.cell-actions').innerHTML =
+                '<button class="save-btn" type="button">Save</button>' +
+                '<button class="cancel-btn" type="button">Cancel</button>' +
+                '<div class="row-error"></div>';
+        }
+
+        function exitEditMode(row) {
+            const d = row.dataset;
+            renderDisplayRow(row, {
+                timestamp: d.timestamp, sport: d.sport, desc: d.desc,
+                odds: d.odds, risk: d.risk, payout: d.payout, result: d.result
+            });
+        }
+
+        async function saveRow(row) {
+            const betId = row.dataset.betId;
+            const errorEl = row.querySelector('.row-error');
+            const saveBtn = row.querySelector('.save-btn');
+
+            const payload = {
+                token,
+                sport: row.querySelector('.edit-sport').value.trim(),
+                bet_description: row.querySelector('.edit-desc').value.trim(),
+                odds: Number(row.querySelector('.edit-odds').value),
+                risk: Number(row.querySelector('.edit-risk').value),
+                payout: Number(row.querySelector('.edit-payout').value),
+                result: row.querySelector('.edit-result').value,
+                timestamp: dateInputToTimestamp(row.querySelector('.edit-date').value)
+            };
+
+            saveBtn.disabled = true;
+            try {
+                const response = await fetch(`/bet/${betId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) throw new Error('Save failed');
+
+                const updated = await response.json();
+                renderDisplayRow(row, {
+                    timestamp: updated.timestamp,
+                    sport: updated.sport,
+                    desc: updated.bet_description,
+                    odds: updated.odds,
+                    risk: updated.risk,
+                    payout: updated.payout,
+                    result: updated.result
+                });
+            } catch (err) {
+                if (errorEl) errorEl.textContent = 'Failed to save — try again';
+                saveBtn.disabled = false;
+            }
+        }
+
+        tbody.addEventListener('click', (e) => {
+            const row = e.target.closest('tr');
+            if (!row) return;
+
+            if (e.target.classList.contains('edit-btn')) {
+                enterEditMode(row);
+            } else if (e.target.classList.contains('cancel-btn')) {
+                exitEditMode(row);
+            } else if (e.target.classList.contains('save-btn')) {
+                saveRow(row);
+            }
+        });
+    })();
+    </script>
 </body>
 </html>

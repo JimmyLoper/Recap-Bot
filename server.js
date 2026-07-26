@@ -8,6 +8,9 @@ const db = require('./utils/db');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Needed to read req.body on PUT /bet/:betId (inline edit endpoint below).
+app.use(express.json());
+
 // ------------------------------------------------------------
 // GET /history?token=...
 // Public bet history page for a capper, reached via their personal link.
@@ -32,7 +35,7 @@ app.get('/history', async (req, res) => {
         const capper = capperRows[0];
 
         const { rows: bets } = await db.query(
-            `SELECT timestamp, sport, bet_description, odds, risk, payout, result
+            `SELECT id, timestamp, sport, bet_description, odds, risk, payout, result
              FROM bets
              WHERE user_id = $1
              ORDER BY timestamp DESC`,
@@ -40,10 +43,68 @@ app.get('/history', async (req, res) => {
         );
 
         const stats = calculateStats(bets);
-        return res.send(renderCapperPage(capper, stats, bets));
+        return res.send(renderCapperPage(capper, stats, bets, token));
     } catch (err) {
         console.error('Error in /history route:', err);
         return res.status(500).send(renderErrorPage('Something went wrong loading this page'));
+    }
+});
+
+// ------------------------------------------------------------
+// PUT /bet/:betId
+// Inline edit endpoint for a capper's own bet row on their /history page.
+// The token identifies the capper; bet ownership is re-checked server-side
+// against the DB so a crafted request can never edit another capper's bet.
+// ------------------------------------------------------------
+app.put('/bet/:betId', async (req, res) => {
+    const { betId } = req.params;
+    const { token, sport, bet_description, odds, risk, payout, result, timestamp } = req.body || {};
+
+    if (!token) {
+        return res.status(403).send({ error: 'Missing token' });
+    }
+
+    try {
+        const { rows: capperRows } = await db.query(
+            `SELECT user_id FROM capper_info WHERE token = $1`,
+            [token]
+        );
+
+        if (capperRows.length === 0) {
+            return res.status(403).send({ error: 'Invalid token' });
+        }
+
+        const { user_id } = capperRows[0];
+
+        const { rows: betRows } = await db.query(
+            `SELECT user_id FROM bets WHERE id = $1`,
+            [betId]
+        );
+
+        // Compare as strings — user_id is bigint in the DB, and JS Number
+        // conversion can lose precision on large Discord IDs.
+        if (betRows.length === 0 || String(betRows[0].user_id) !== String(user_id)) {
+            return res.status(403).send({ error: 'Not authorized to edit this bet' });
+        }
+
+        const { rows: updatedRows } = await db.query(
+            `UPDATE bets SET
+                sport = $1,
+                bet_description = $2,
+                odds = $3,
+                risk = $4,
+                payout = $5,
+                result = $6,
+                timestamp = $7
+             WHERE id = $8 AND user_id = $9
+             RETURNING *`,
+            [sport, bet_description, odds, risk, payout, result, timestamp, betId, user_id]
+        );
+
+        return res.status(200).send(updatedRows[0]);
+    } catch (err) {
+        console.error('Error in PUT /bet/:betId route:', err);
+        return res.status(500).send({ error: 'Something went wrong updating this bet' });
     }
 });
 
@@ -161,7 +222,7 @@ function calculateStats(bets) {
 // Fills views/capper.html placeholders with capper data, stats, and bet rows.
 // Uses plain string replace instead of a template engine since none was installed.
 // ------------------------------------------------------------
-function renderCapperPage(capper, stats, bets) {
+function renderCapperPage(capper, stats, bets, token) {
     const template = fs.readFileSync(path.join(__dirname, 'views', 'capper.html'), 'utf8');
 
     const betRows = bets.map(bet => {
@@ -180,14 +241,18 @@ function renderCapperPage(capper, stats, bets) {
             : 0;
         const rowUnitsLabel = `${rowUnits > 0 ? '+' : ''}${rowUnits.toFixed(2)}`;
 
-        return `<tr>
-            <td>${date}</td>
-            <td>${escapeHtml(bet.sport || '')}</td>
-            <td class="desc">${escapeHtml(bet.bet_description)}</td>
-            <td>${Number(bet.odds)}</td>
-            <td>${parseFloat(bet.risk).toFixed(2)}</td>
-            <td class="cell-${bet.result}">${rowUnitsLabel}</td>
-            <td class="cell-${bet.result}">${resultLabel}</td>
+        // data-* attributes cache the raw (unformatted) values so the inline
+        // editor in capper.html can populate inputs and restore on Cancel
+        // without having to re-parse the formatted display text.
+        return `<tr data-bet-id="${escapeHtml(bet.id)}" data-timestamp="${Number(bet.timestamp)}" data-sport="${escapeHtml(bet.sport || '')}" data-desc="${escapeHtml(bet.bet_description)}" data-odds="${Number(bet.odds)}" data-risk="${parseFloat(bet.risk)}" data-payout="${parseFloat(bet.payout)}" data-result="${bet.result}">
+            <td class="cell-date">${date}</td>
+            <td class="cell-sport">${escapeHtml(bet.sport || '')}</td>
+            <td class="desc cell-desc">${escapeHtml(bet.bet_description)}</td>
+            <td class="cell-odds">${Number(bet.odds)}</td>
+            <td class="cell-risk">${parseFloat(bet.risk).toFixed(2)}</td>
+            <td class="cell-units cell-${bet.result}">${rowUnitsLabel}</td>
+            <td class="cell-result cell-${bet.result}">${resultLabel}</td>
+            <td class="cell-actions"><button class="edit-btn" type="button">Edit</button></td>
         </tr>`;
     }).join('\n');
 
@@ -199,7 +264,8 @@ function renderCapperPage(capper, stats, bets) {
         .replace(/{{ROI}}/g, `${stats.roi}%`)
         .replace(/{{TOTAL_BETS}}/g, stats.totalBets)
         .replace(/{{PENDING}}/g, stats.pending)
-        .replace(/{{BET_ROWS}}/g, betRows || '<tr><td colspan="7">No bets yet</td></tr>');
+        .replace(/{{TOKEN}}/g, escapeHtml(token))
+        .replace(/{{BET_ROWS}}/g, betRows || '<tr><td colspan="8">No bets yet</td></tr>');
 }
 
 function renderErrorPage(message) {
