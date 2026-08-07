@@ -18,6 +18,35 @@
     .header { max-width: 1300px; margin: 0 auto 24px; }
     .header h1 { margin: 0 0 4px; font-size: 28px; }
     .header .subtitle { color: #666; margin: 0 0 20px; font-size: 14px; }
+    .filters {
+        margin: 0 0 18px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 10px;
+        align-items: end;
+    }
+    .filter-field { display: flex; flex-direction: column; gap: 6px; }
+    .filter-field label {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #666;
+        font-weight: 600;
+    }
+    .filter-field select,
+    .filter-field input,
+    .filter-actions button {
+        width: 100%;
+        min-height: 34px;
+        padding: 6px 8px;
+        font-size: 13px;
+        border: 1px solid #d5d7db;
+        border-radius: 6px;
+        background: #fff;
+        color: #222;
+    }
+    .filter-actions button { cursor: pointer; }
+    .filter-actions button:hover { background: #f7f7f7; }
     .stats-row { display: flex; flex-wrap: wrap; gap: 12px; }
     .stat-card {
         background: #fff;
@@ -56,13 +85,13 @@
     }
     /* Fixed layout needs explicit widths on the narrow columns so the
        remaining space is given to Description, which wraps instead. */
-    thead th:nth-child(1) { width: 90px; }
-    thead th:nth-child(2) { width: 90px; }
-    thead th:nth-child(4) { width: 70px; }
-    thead th:nth-child(5) { width: 70px; }
+    thead th:nth-child(1) { width: 110px; }
+    thead th:nth-child(2) { width: 100px; }
+    thead th:nth-child(4) { width: 100px; }
+    thead th:nth-child(5) { width: 100px; }
     thead th:nth-child(6) { width: 100px; }
-    thead th:nth-child(7) { width: 80px; }
-    thead th:nth-child(8) { width: 120px; }
+    thead th:nth-child(7) { width: 90px; }
+    thead th:nth-child(8) { width: 130px; }
     tbody td { padding: 10px 16px; border-bottom: 1px solid #f0f0f0; white-space: nowrap; }
     tbody td.desc { white-space: normal; word-break: break-word; }
     tbody tr:nth-child(even) { background: #fafafa; }
@@ -76,6 +105,13 @@
     .cell-actions .save-btn { border-color: #157347; color: #157347; }
     .cell-actions .cancel-btn { border-color: #b02a26; color: #b02a26; }
     td input, td select { width: 100%; padding: 4px 6px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+    tr.is-editing td { overflow: visible; }
+    tr.is-editing .cell-odds input,
+    tr.is-editing .cell-risk input,
+    tr.is-editing .cell-units input {
+        min-width: 82px;
+        font-variant-numeric: tabular-nums;
+    }
     .row-error { color: #b02a26; font-size: 11px; margin-top: 4px; white-space: normal; }
 </style>
 </head>
@@ -83,6 +119,36 @@
     <div class="header">
         <h1>{{CAPPER_NAME}}</h1>
         <p class="subtitle">@{{USERNAME}}</p>
+        <div class="filters">
+            <div class="filter-field">
+                <label for="filter-result">Result</label>
+                <select id="filter-result">
+                    <option value="all">All Results</option>
+                    <option value="win">Win</option>
+                    <option value="loss">Loss</option>
+                    <option value="push">Push</option>
+                    <option value="pending">Pending</option>
+                </select>
+            </div>
+            <div class="filter-field">
+                <label for="filter-sport">Sport</label>
+                <select id="filter-sport">
+                    <option value="all">All Sports</option>
+                </select>
+            </div>
+            <div class="filter-field">
+                <label for="filter-date-from">Date From</label>
+                <input id="filter-date-from" type="date">
+            </div>
+            <div class="filter-field">
+                <label for="filter-date-to">Date To</label>
+                <input id="filter-date-to" type="date">
+            </div>
+            <div class="filter-actions">
+                <label for="reset-filters">Filters</label>
+                <button id="reset-filters" type="button">Reset Filters</button>
+            </div>
+        </div>
         <div class="stats-row">
             <div class="stat-card">
                 <div class="label">Record</div>
@@ -132,8 +198,58 @@
         const token = document.querySelector('meta[name="capper-token"]').content;
         const tbody = document.querySelector('table tbody');
         if (!tbody) return;
+        const resultFilter = document.getElementById('filter-result');
+        const sportFilter = document.getElementById('filter-sport');
+        const dateFromFilter = document.getElementById('filter-date-from');
+        const dateToFilter = document.getElementById('filter-date-to');
+        const resetFiltersBtn = document.getElementById('reset-filters');
 
         const RESULT_OPTIONS = ['win', 'loss', 'push', 'pending'];
+
+        function getDataRows() {
+            return [...tbody.querySelectorAll('tr[data-bet-id]')];
+        }
+
+        function getDateKey(timestampMs) {
+            return toDateInputValue(Number(timestampMs));
+        }
+
+        function populateSportFilter() {
+            if (!sportFilter) return;
+
+            const existingValue = sportFilter.value || 'all';
+            const sports = [...new Set(getDataRows()
+                .map(row => (row.dataset.sport || '').trim())
+                .filter(Boolean)
+            )].sort((a, b) => a.localeCompare(b));
+
+            sportFilter.innerHTML = '<option value="all">All Sports</option>' +
+                sports.map(sport => `<option value="${escapeAttr(sport)}">${escapeAttr(sport)}</option>`).join('');
+
+            if ([...sportFilter.options].some(opt => opt.value === existingValue)) {
+                sportFilter.value = existingValue;
+            }
+        }
+
+        function applyFilters() {
+            const resultValue = (resultFilter && resultFilter.value) || 'all';
+            const sportValue = (sportFilter && sportFilter.value) || 'all';
+            const fromValue = (dateFromFilter && dateFromFilter.value) || '';
+            const toValue = (dateToFilter && dateToFilter.value) || '';
+
+            getDataRows().forEach(row => {
+                const rowResult = (row.dataset.result || '').toLowerCase();
+                const rowSport = (row.dataset.sport || '').trim();
+                const rowDate = getDateKey(row.dataset.timestamp);
+
+                const resultMatch = resultValue === 'all' || rowResult === resultValue;
+                const sportMatch = sportValue === 'all' || rowSport === sportValue;
+                const fromMatch = !fromValue || rowDate >= fromValue;
+                const toMatch = !toValue || rowDate <= toValue;
+
+                row.style.display = resultMatch && sportMatch && fromMatch && toMatch ? '' : 'none';
+            });
+        }
 
         // Mirrors the server's per-row units formula (win: +payout, loss: -risk, else 0)
         // so the display stays consistent after an inline edit without a page reload.
@@ -191,6 +307,7 @@
             resultCell.className = `cell-result cell-${resultKey}`;
 
             row.querySelector('.cell-actions').innerHTML = '<button class="edit-btn" type="button">Edit</button>';
+            row.classList.remove('is-editing');
 
             row.dataset.timestamp = data.timestamp;
             row.dataset.sport = data.sport;
@@ -199,10 +316,14 @@
             row.dataset.risk = data.risk;
             row.dataset.payout = data.payout;
             row.dataset.result = resultKey;
+
+            populateSportFilter();
+            applyFilters();
         }
 
         function enterEditMode(row) {
             const d = row.dataset;
+            row.classList.add('is-editing');
 
             row.querySelector('.cell-date').innerHTML = `<input type="date" class="edit-date" value="${toDateInputValue(Number(d.timestamp))}">`;
             row.querySelector('.cell-sport').innerHTML = `<input type="text" class="edit-sport" value="${escapeAttr(d.sport)}">`;
@@ -281,6 +402,24 @@
                 saveBtn.disabled = false;
             }
         }
+
+        if (resultFilter) resultFilter.addEventListener('change', applyFilters);
+        if (sportFilter) sportFilter.addEventListener('change', applyFilters);
+        if (dateFromFilter) dateFromFilter.addEventListener('change', applyFilters);
+        if (dateToFilter) dateToFilter.addEventListener('change', applyFilters);
+
+        if (resetFiltersBtn) {
+            resetFiltersBtn.addEventListener('click', () => {
+                if (resultFilter) resultFilter.value = 'all';
+                if (sportFilter) sportFilter.value = 'all';
+                if (dateFromFilter) dateFromFilter.value = '';
+                if (dateToFilter) dateToFilter.value = '';
+                applyFilters();
+            });
+        }
+
+        populateSportFilter();
+        applyFilters();
 
         tbody.addEventListener('click', (e) => {
             const row = e.target.closest('tr');
