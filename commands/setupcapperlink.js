@@ -65,7 +65,7 @@ module.exports = {
 
             const url = `${process.env.WEB_URL}/history?token=${token}`;
             const linkMessage = await trackerChannel.send(
-                `🔗 ${targetUser} personal bet history link: ${url}\nKeep this link private.`
+                `🔗 Personal bet history link: ${url}`
             );
 
             let pinNotice = 'Pinned in tracker channel.';

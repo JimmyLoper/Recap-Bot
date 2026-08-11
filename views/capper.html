@@ -113,6 +113,38 @@
         font-variant-numeric: tabular-nums;
     }
     .row-error { color: #b02a26; font-size: 11px; margin-top: 4px; white-space: normal; }
+
+    @media (max-width: 768px) {
+        body { padding: 12px; }
+        .header h1 { font-size: 22px; }
+        .filters { grid-template-columns: 1fr 1fr; }
+
+        table { table-layout: auto; }
+        thead th:nth-child(2),
+        tbody td:nth-child(2) { display: none; }
+        thead th:nth-child(4),
+        tbody td.cell-odds { display: none; }
+        thead th { font-size: 11px; padding: 10px 8px; }
+        tbody td { padding: 8px; font-size: 13px; }
+
+        td input, td select { font-size: 12px; padding: 3px 4px; }
+        .cell-actions button { padding: 4px 6px; font-size: 11px; }
+
+        .table-wrapper {
+            border-radius: 0;
+            margin-left: -12px;
+            margin-right: -12px;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .stat-card { flex: 1 1 calc(50% - 12px); }
+        .stat-card .value { font-size: 16px; }
+    }
+
+    @media (max-width: 480px) {
+        .filters { grid-template-columns: 1fr; }
+    }
 </style>
 </head>
 <body>
