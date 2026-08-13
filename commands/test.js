@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const { dailyStatsUpdate } = require('../tasks/daily-stats-update');
 const { unsettledBetReminder } = require('../tasks/unsettled-bet-reminder');
 
@@ -20,7 +20,7 @@ module.exports = {
     async execute(interaction) {
         const task = interaction.options.getString('task');
         
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         try {
             if (task === 'daily-stats' || task === 'both') {
@@ -35,13 +35,13 @@ module.exports = {
 
             return interaction.editReply({
                 content: `✅ Test task(s) completed successfully!`,
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         } catch (err) {
             console.error('Error in test command:', err);
             return interaction.editReply({
                 content: `❌ Error running test task: ${err.message}`,
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
     }

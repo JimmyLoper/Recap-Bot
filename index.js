@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Collection } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, MessageFlags } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const cron = require('node-cron');
@@ -46,7 +46,7 @@ if (fs.existsSync(interactionsPath)) {
     console.log(`Loaded ${client.interactions.size} interaction handlers`);
 }
 
-client.once('ready', () => {
+client.once('clientReady', () => {
     console.log(`✅ Logged in as ${client.user.tag}`);
     
     // ============================================================
@@ -84,7 +84,7 @@ client.on('interactionCreate', async interaction => {
             if (!interaction.replied) {
                 await interaction.reply({
                     content: 'There was an error executing this command.',
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
             }
         }
@@ -103,7 +103,7 @@ client.on('interactionCreate', async interaction => {
                     if (!interaction.replied && !interaction.deferred) {
                         await interaction.reply({
                             content: 'There was an error processing this interaction.',
-                            ephemeral: true
+                            flags: MessageFlags.Ephemeral
                         }).catch(() => {});
                     }
                 }

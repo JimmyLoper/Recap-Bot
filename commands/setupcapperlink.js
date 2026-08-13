@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const crypto = require('crypto');
 const db = require('../utils/db');
 
@@ -19,13 +19,13 @@ module.exports = {
         if (interaction.user.id !== overrideId) {
             return interaction.reply({
                 content: 'You are not authorized to use admin commands.',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
 
         const targetUser = interaction.options.getUser('user');
 
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         try {
             const { rows } = await db.query(
@@ -36,7 +36,7 @@ module.exports = {
             if (rows.length === 0) {
                 return interaction.editReply({
                     content: '⚠️ Capper not found in database',
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
@@ -44,7 +44,7 @@ module.exports = {
             if (!capper.tracker_channel_id) {
                 return interaction.editReply({
                     content: `⚠️ ${capper.username} does not have a tracker channel set.`,
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
@@ -52,7 +52,7 @@ module.exports = {
             if (!trackerChannel || !trackerChannel.isTextBased()) {
                 return interaction.editReply({
                     content: `❌ Could not access tracker channel ${capper.tracker_channel_id} for ${capper.username}.`,
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
             }
 
@@ -78,13 +78,13 @@ module.exports = {
 
             return interaction.editReply({
                 content: `✅ Link posted for ${capper.username} in <#${capper.tracker_channel_id}>. ${pinNotice}`,
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         } catch (err) {
             console.error('Error in setupcapperlink command:', err);
             return interaction.editReply({
                 content: `❌ Error: ${err.message}`,
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
     }

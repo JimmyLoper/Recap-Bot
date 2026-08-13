@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const { dailyStatsUpdate } = require('../tasks/daily-stats-update');
 
 module.exports = {
@@ -23,7 +23,7 @@ module.exports = {
         if (interaction.user.id !== overrideId) {
             return interaction.reply({
                 content: 'You are not authorized to use admin commands.',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
 
@@ -40,11 +40,11 @@ async function handleResendRecap(interaction) {
     if (!recapChannelId) {
         return interaction.reply({
             content: '❌ RECAP_CHANNEL_ID not set in environment variables.',
-            ephemeral: true
+            flags: MessageFlags.Ephemeral
         });
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
         // Fetch recap channel
@@ -52,7 +52,7 @@ async function handleResendRecap(interaction) {
         if (!recapChannel) {
             return interaction.editReply({
                 content: `❌ Could not fetch recap channel ${recapChannelId}`,
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             });
         }
 
@@ -91,14 +91,14 @@ async function handleResendRecap(interaction) {
 
         return interaction.editReply({
             content: `✅ Deleted ${deletedCount} recap message(s) and sent fresh recap!`,
-            ephemeral: true
+            flags: MessageFlags.Ephemeral
         });
 
     } catch (err) {
         console.error('Error in resendrecap:', err);
         return interaction.editReply({
             content: `❌ Error: ${err.message}`,
-            ephemeral: true
+            flags: MessageFlags.Ephemeral
         });
     }
 }

@@ -9,27 +9,32 @@ async function unsettledBetReminder(client) {
         const today = new Date();
         today.setHours(0, 0, 0, 0); // Set to midnight of today
         const todayTimestamp = today.getTime();
+        
 
         console.log(`Today at midnight: ${today.toLocaleString('en-US', { timeZone: 'America/New_York' })}`);
 
         const { rows: unsettledBets } = await db.query(
-            `SELECT DISTINCT cnr.user_id, cnr.username, cnr.tracker_channel_id, COUNT(b.id) as bet_count
+            `SELECT DISTINCT cnr.user_id, cnr.username, cnr.tracker_channel_id, cnr.token, COUNT(b.id) as bet_count
              FROM capper_info cnr
              JOIN bets b ON cnr.user_id = b.user_id
              WHERE cnr.active = 'yes' AND b.result = 'pending' AND CAST(b.timestamp AS BIGINT) < $1
-             GROUP BY cnr.user_id, cnr.username, cnr.tracker_channel_id`,
-            [todayTimestamp]
+             GROUP BY cnr.user_id, cnr.username, cnr.tracker_channel_id, cnr.token`,
+            [todayTimestamp],
         );
 
         console.log(`Found ${unsettledBets.length} cappers with unsettled bets\n`);
 
         for (const row of unsettledBets) {
-            const { user_id, username, tracker_channel_id, bet_count } = row;
+            const { user_id, username, tracker_channel_id, token, bet_count } = row;
 
             console.log(`Processing: ${username} (${user_id}) - ${bet_count} unsettled bets`);
 
             if (!tracker_channel_id) {
                 console.warn(`  ⚠️ No tracker channel set for ${username}`);
+                continue;
+            }
+            if (!token) {
+                console.warn(`  ⚠️ No token set for ${username}`);
                 continue;
             }
 
@@ -39,18 +44,25 @@ async function unsettledBetReminder(client) {
                 continue;
             }
 
+            const url = `${process.env.WEB_URL}/history?token=${token}`;
+
             const embed = new EmbedBuilder()
                 .setTitle('⏳ Unsettled Bets Reminder')
-                .setDescription(`You have **${bet_count}** unsettled bet${bet_count > 1 ? 's' : ''} from yesterday. Please settle those before the recap at 12pm!`)
+                .setDescription(`You have **${bet_count}** unsettled bet${bet_count > 1 ? 's' : ''}. Settle in this channel or from your webpage using the button below:`)
                 .setColor(0xFFA500)
                 .setTimestamp();
 
-            const doneButton = new ButtonBuilder()
-                .setCustomId(`unsettled_done_${user_id}`)
+            const dismissButton = new ButtonBuilder()
+                .setCustomId(`dismiss_settle_reminder_${user_id}`)
                 .setLabel('Done')
                 .setStyle(ButtonStyle.Success);
+            
+            const webpageButton = new ButtonBuilder()
+                .setLabel('Webpage')
+                .setStyle(ButtonStyle.Link)
+                .setURL(url);
 
-            const buttonRow = new ActionRowBuilder().addComponents(doneButton);
+            const buttonRow = new ActionRowBuilder().addComponents(webpageButton, dismissButton);
 
             try {
                 await trackerChannel.send({ content: `<@${user_id}>`, embeds: [embed], components: [buttonRow] });
