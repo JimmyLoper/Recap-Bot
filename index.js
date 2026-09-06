@@ -59,31 +59,31 @@ client.once('clientReady', () => {
     });
 
     // ============================================================
-    // DAILY STATS UPDATE - Runs at 11:00 AM EST every day
+    // DAILY STATS UPDATE - Runs at 12:00 PM EST every day
     // ============================================================
     cron.schedule('0 12 * * *', () => {
         dailyStatsUpdate(client).catch(err => console.error('Daily stats task error:', err));
     });
 
     // ============================================================
-    // UNSETTLED LIVE PLAY REMINDER - Runs Sundays at 9:00 AM EST
+    // UNSETTLED LIVE PLAY REMINDER - Runs Sundays at 10:00 AM EST
     // ============================================================
-    cron.schedule('0 9 * * 0', () => {
+    cron.schedule('0 10 * * 0', () => {
         unsettledLiveBetReminder(client).catch(err => console.error('Live reminder task error:', err));
     });
 
     // ============================================================
-    // LIVE PLAY STATS UPDATE - Runs Sundays at 10:00 AM EST
+    // LIVE PLAY STATS UPDATE - Runs Sundays at 12:00 PM EST
     // ============================================================
-    cron.schedule('0 10 * * 0', () => {
+    cron.schedule('0 12 * * 0', () => {
         livePlayStatsUpdate(client).catch(err => console.error('Live play stats task error:', err));
     });
 
     console.log('📅 Scheduled tasks loaded');
     console.log('  • Unsettled bet reminder: 10:00 AM EST');
     console.log('  • Daily stats update: 12:00 PM EST');
-    console.log('  • Unsettled live play reminder: Sundays 9:00 AM EST');
-    console.log('  • Live play stats update: Sundays 10:00 AM EST');
+    console.log('  • Unsettled live play reminder: Sundays 10:00 AM EST');
+    console.log('  • Live play stats update: Sundays 12:00 PM EST');
 });
 
 // ============================================================
