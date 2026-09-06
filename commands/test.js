@@ -1,6 +1,8 @@
 const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const { dailyStatsUpdate } = require('../tasks/daily-stats-update');
 const { unsettledBetReminder } = require('../tasks/unsettled-bet-reminder');
+const { livePlayStatsUpdate } = require('../tasks/live-play-stats-update');
+const { unsettledLiveBetReminder } = require('../tasks/unsettled-live-bet-reminder');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -13,6 +15,8 @@ module.exports = {
                 .addChoices(
                     { name: 'Daily Stats', value: 'daily-stats' },
                     { name: 'Unsettled Bets Reminder', value: 'unsettled-reminder' },
+                    { name: 'Live Play Stats Recap', value: 'live-stats' },
+                    { name: 'Unsettled Live Plays Reminder', value: 'unsettled-live-reminder' },
                     { name: 'Both Tasks', value: 'both' }
                 )
         ),
@@ -31,6 +35,16 @@ module.exports = {
             if (task === 'unsettled-reminder' || task === 'both') {
                 console.log('🧪 Testing unsettledBetReminder...');
                 await unsettledBetReminder(interaction.client);
+            }
+
+            if (task === 'live-stats' || task === 'both') {
+                console.log('🧪 Testing livePlayStatsUpdate...');
+                await livePlayStatsUpdate(interaction.client);
+            }
+
+            if (task === 'unsettled-live-reminder' || task === 'both') {
+                console.log('🧪 Testing unsettledLiveBetReminder...');
+                await unsettledLiveBetReminder(interaction.client);
             }
 
             return interaction.editReply({

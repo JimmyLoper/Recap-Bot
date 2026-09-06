@@ -1,15 +1,14 @@
 const db = require('../utils/db');
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
-async function unsettledBetReminder(client) {
-    console.log('🔔 Checking for unsettled bets...');
+async function unsettledLiveBetReminder(client) {
+    console.log('🔔 Checking for unsettled live plays...');
 
     try {
-        // Fetch all active cappers with unsettled bets placed before today at 12am
+        // Fetch live-play cappers with unsettled live plays placed before today at 12am
         const today = new Date();
         today.setHours(0, 0, 0, 0); // Set to midnight of today
         const todayTimestamp = today.getTime();
-        
 
         console.log(`Today at midnight: ${today.toLocaleString('en-US', { timeZone: 'America/New_York' })}`);
 
@@ -17,17 +16,18 @@ async function unsettledBetReminder(client) {
             `SELECT DISTINCT cnr.user_id, cnr.username, cnr.tracker_channel_id, cnr.token, COUNT(b.id) as bet_count
              FROM capper_info cnr
              JOIN bets b ON cnr.user_id = b.user_id
-             WHERE cnr.active = 'yes' AND b.result = 'pending' AND CAST(b.timestamp AS BIGINT) < $1 AND b.is_live_play = 0
-             GROUP BY cnr.user_id, cnr.username, cnr.tracker_channel_id, cnr.token`, 
+             WHERE cnr.active = 'yes' AND cnr.live_play_tracking = 'yes'
+               AND b.is_live_play = 1 AND b.result = 'pending' AND CAST(b.timestamp AS BIGINT) < $1
+             GROUP BY cnr.user_id, cnr.username, cnr.tracker_channel_id, cnr.token`,
             [todayTimestamp],
         );
 
-        console.log(`Found ${unsettledBets.length} cappers with unsettled bets\n`);
+        console.log(`Found ${unsettledBets.length} cappers with unsettled live plays\n`);
 
         for (const row of unsettledBets) {
             const { user_id, username, tracker_channel_id, token, bet_count } = row;
 
-            console.log(`Processing: ${username} (${user_id}) - ${bet_count} unsettled bets`);
+            console.log(`Processing: ${username} (${user_id}) - ${bet_count} unsettled live plays`);
 
             if (!tracker_channel_id) {
                 console.warn(`  ⚠️ No tracker channel set for ${username}`);
@@ -47,8 +47,8 @@ async function unsettledBetReminder(client) {
             const url = `${process.env.WEB_URL}/history?token=${token}`;
 
             const embed = new EmbedBuilder()
-                .setTitle('⏳ Unsettled Bets Reminder')
-                .setDescription(`You have **${bet_count}** unsettled bet${bet_count > 1 ? 's' : ''}. Settle in this channel or from your webpage using the button below:`)
+                .setTitle('⏳ Unsettled Live Plays Reminder')
+                .setDescription(`You have **${bet_count}** unsettled live play${bet_count > 1 ? 's' : ''}. Settle in this channel or from your webpage using the button below:`)
                 .setColor(0xFFA500)
                 .setTimestamp();
 
@@ -56,7 +56,7 @@ async function unsettledBetReminder(client) {
                 .setCustomId(`dismiss_settle_reminder_${user_id}`)
                 .setLabel('Done')
                 .setStyle(ButtonStyle.Success);
-            
+
             const webpageButton = new ButtonBuilder()
                 .setLabel('Webpage')
                 .setStyle(ButtonStyle.Link)
@@ -72,10 +72,10 @@ async function unsettledBetReminder(client) {
             }
         }
 
-        console.log('✅ Unsettled bet reminder check complete');
+        console.log('✅ Unsettled live play reminder check complete');
     } catch (err) {
-        console.error('Error in unsettledBetReminder:', err);
+        console.error('Error in unsettledLiveBetReminder:', err);
     }
 }
 
-module.exports = { unsettledBetReminder };
+module.exports = { unsettledLiveBetReminder };

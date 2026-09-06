@@ -5,6 +5,8 @@ const path = require('path');
 const cron = require('node-cron');
 const { dailyStatsUpdate } = require('./tasks/daily-stats-update');
 const { unsettledBetReminder } = require('./tasks/unsettled-bet-reminder');
+const { livePlayStatsUpdate } = require('./tasks/live-play-stats-update');
+const { unsettledLiveBetReminder } = require('./tasks/unsettled-live-bet-reminder');
 
 const client = new Client({
     intents: [GatewayIntentBits.Guilds]
@@ -63,9 +65,25 @@ client.once('clientReady', () => {
         dailyStatsUpdate(client).catch(err => console.error('Daily stats task error:', err));
     });
 
+    // ============================================================
+    // UNSETTLED LIVE PLAY REMINDER - Runs Sundays at 9:00 AM EST
+    // ============================================================
+    cron.schedule('0 9 * * 0', () => {
+        unsettledLiveBetReminder(client).catch(err => console.error('Live reminder task error:', err));
+    });
+
+    // ============================================================
+    // LIVE PLAY STATS UPDATE - Runs Sundays at 10:00 AM EST
+    // ============================================================
+    cron.schedule('0 10 * * 0', () => {
+        livePlayStatsUpdate(client).catch(err => console.error('Live play stats task error:', err));
+    });
+
     console.log('📅 Scheduled tasks loaded');
     console.log('  • Unsettled bet reminder: 10:00 AM EST');
     console.log('  • Daily stats update: 12:00 PM EST');
+    console.log('  • Unsettled live play reminder: Sundays 9:00 AM EST');
+    console.log('  • Live play stats update: Sundays 10:00 AM EST');
 });
 
 // ============================================================
