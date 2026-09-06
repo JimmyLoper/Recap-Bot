@@ -25,14 +25,6 @@ async function livePlayStatsUpdate(client) {
 
         const today = new Date().toISOString().split('T')[0];
 
-        const teamTotals = {
-            yesterday: 0,
-            weekend: 0,
-            month: 0,
-            ytd: 0,
-            overall: 0
-        };
-
         for (const capper of cappers) {
             const { user_id, username, capper_name, emoji } = capper;
 
@@ -40,12 +32,6 @@ async function livePlayStatsUpdate(client) {
             if (!stats) continue;
 
             console.log(`${capper_name} (live): Yesterday=${stats.units_won_yesterday}, Weekend=${stats.units_won_weekend}, YTD=${stats.units_won_ytd}`);
-
-            teamTotals.yesterday += stats.units_won_yesterday;
-            teamTotals.weekend += stats.units_won_weekend;
-            teamTotals.month += stats.units_won_month;
-            teamTotals.ytd += stats.units_won_ytd;
-            teamTotals.overall += stats.units_won_overall;
 
             // Stored under a distinct username (suffixed) so live-play stats
             // don't overwrite the capper's regular capper_tracker_stats row.
@@ -87,31 +73,6 @@ async function livePlayStatsUpdate(client) {
             } catch (err) {
                 console.error(`Failed to send live play stats embed for ${capper_name}:`, err);
             }
-        }
-
-        // Wait 3 seconds so Discord doesn't group it with individual recaps
-        await new Promise(resolve => setTimeout(resolve, 3000));
-
-        const currentYear = new Date().getFullYear();
-        const teamStatsText = [
-            `Yesterday:     ${teamTotals.yesterday > 0 ? '+' : ''}${teamTotals.yesterday.toFixed(2)}u`,
-            `Last Weekend:  ${teamTotals.weekend > 0 ? '+' : ''}${teamTotals.weekend.toFixed(2)}u`,
-            `This Month:    ${teamTotals.month > 0 ? '+' : ''}${teamTotals.month.toFixed(2)}u`,
-            `Year to Date:  ${teamTotals.ytd > 0 ? '+' : ''}${teamTotals.ytd.toFixed(2)}u`,
-            ...(currentYear >= 2027 ? [`Overall:       ${teamTotals.overall > 0 ? '+' : ''}${teamTotals.overall.toFixed(2)}u`] : [])
-        ].join('\n');
-
-        const teamEmbed = new EmbedBuilder()
-            .setTitle('Live Play Team Recap')
-            .setColor(0x2ECC71)
-            .setDescription(teamStatsText)
-            .setTimestamp();
-
-        try {
-            await recapChannel.send({ embeds: [teamEmbed] });
-            console.log('📊 Live play team recap sent');
-        } catch (err) {
-            console.error('Failed to send live play team recap:', err);
         }
 
         console.log('✅ Live play stats update complete');
