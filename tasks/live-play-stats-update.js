@@ -56,7 +56,7 @@ async function livePlayStatsUpdate(client) {
             const currentYear = new Date().getFullYear();
             const statsText = [
                 `Yesterday:     ${stats.units_won_yesterday}u`,
-                `Last Weekend:  ${stats.units_won_weekend}u`,
+                // `Last Weekend:  ${stats.units_won_weekend}u`,
                 `This Month:    ${stats.units_won_month}u`,
                 `Year to Date:  ${stats.units_won_ytd}u`,
                 ...(currentYear >= 2027 ? [`Overall: ${stats.units_won_overall}u`] : [])
