@@ -85,11 +85,16 @@ async function calculateLivePlayCapperStats(userId) {
 
     const today = new Date(now);
     today.setHours(0, 0, 0, 0); // Local midnight
-    const todayMs = today.getTime();
 
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayMs = yesterday.getTime();
+
+    // West Coast games can finish after midnight, so "yesterday" runs through
+    // 5am today instead of cutting off at midnight.
+    const yesterdayCutoff = new Date(today);
+    yesterdayCutoff.setHours(5, 0, 0, 0);
+    const yesterdayCutoffMs = yesterdayCutoff.getTime();
 
     // Most recent Saturday at midnight (Sat=6 -> 0 days back, Sun=0 -> 1 day back, ...)
     const weekendStart = new Date(today);
@@ -123,7 +128,7 @@ async function calculateLivePlayCapperStats(userId) {
              WHERE user_id = $1 AND result IN ('win', 'loss') AND is_live_play = 1
                AND CAST(timestamp AS BIGINT) >= $8
              ORDER BY timestamp DESC`,
-            [userId, yesterdayMs, todayMs, weekendStartMs, nowMs, monthStartMs, yearStartMs, trackingStartMs]
+            [userId, yesterdayMs, yesterdayCutoffMs, weekendStartMs, nowMs, monthStartMs, yearStartMs, trackingStartMs]
         );
 
         let unitsYesterday = 0;
