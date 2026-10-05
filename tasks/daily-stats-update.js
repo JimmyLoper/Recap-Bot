@@ -85,6 +85,10 @@ async function dailyStatsUpdate(client) {
                 .setDescription(statsText)
                 .setTimestamp();
 
+            if (stats.pending_count > 0) {
+                embed.setFooter({ text: 'Some bets still pending' });
+            }
+
             // Send to recap channel
             try {
                 await recapChannel.send({ embeds: [embed] });

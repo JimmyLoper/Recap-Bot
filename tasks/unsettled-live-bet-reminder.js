@@ -18,6 +18,7 @@ async function unsettledLiveBetReminder(client) {
              JOIN bets b ON cnr.user_id = b.user_id
              WHERE cnr.active = 'yes' AND cnr.live_play_tracking = 'yes'
                AND b.is_live_play = 1 AND b.result = 'pending' AND CAST(b.timestamp AS BIGINT) < $1
+               AND b.season_long_bet = false
              GROUP BY cnr.user_id, cnr.username, cnr.tracker_channel_id, cnr.token`,
             [todayTimestamp],
         );

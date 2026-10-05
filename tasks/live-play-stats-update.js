@@ -68,6 +68,10 @@ async function livePlayStatsUpdate(client) {
                 .setDescription(statsText)
                 .setTimestamp();
 
+            if (stats.pending_count > 0) {
+                embed.setFooter({ text: 'Some bets still pending' });
+            }
+
             try {
                 await recapChannel.send({ embeds: [embed] });
             } catch (err) {

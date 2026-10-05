@@ -17,7 +17,7 @@ async function unsettledBetReminder(client) {
             `SELECT DISTINCT cnr.user_id, cnr.username, cnr.tracker_channel_id, cnr.token, COUNT(b.id) as bet_count
              FROM capper_info cnr
              JOIN bets b ON cnr.user_id = b.user_id
-             WHERE cnr.active = 'yes' AND b.result = 'pending' AND CAST(b.timestamp AS BIGINT) < $1 AND b.is_live_play = 0
+             WHERE cnr.active = 'yes' AND b.result = 'pending' AND CAST(b.timestamp AS BIGINT) < $1 AND b.is_live_play = 0 AND b.season_long_bet = false
              GROUP BY cnr.user_id, cnr.username, cnr.tracker_channel_id, cnr.token`, 
             [todayTimestamp],
         );

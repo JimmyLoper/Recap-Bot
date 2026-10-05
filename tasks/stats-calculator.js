@@ -44,6 +44,15 @@ async function calculateCapperStats(userId) {
             [userId, yesterdayMs, todayMs, sevenDaysAgoMs, monthStartMs, yearStartMs, trackingStartMs]
         );
 
+        // Bets from before today that still haven't been settled
+        const { rows: pendingRows } = await db.query(
+            `SELECT COUNT(*) AS count FROM bets
+             WHERE user_id = $1 AND result = 'pending' AND COALESCE(is_live_play, 0) = 0
+               AND season_long_bet = false
+               AND CAST(timestamp AS BIGINT) >= $2 AND CAST(timestamp AS BIGINT) < $3`,
+            [userId, trackingStartMs, todayMs]
+        );
+
         let unitsYesterday = 0;
         let units7Days = 0;
         let unitsMonth = 0;
@@ -67,7 +76,8 @@ async function calculateCapperStats(userId) {
             units_won_7days: Number(units7Days.toFixed(2)),
             units_won_month: Number(unitsMonth.toFixed(2)),
             units_won_ytd: Number(unitsYTD.toFixed(2)),
-            units_won_overall: Number(unitsTotal.toFixed(2))
+            units_won_overall: Number(unitsTotal.toFixed(2)),
+            pending_count: parseInt(pendingRows[0].count, 10)
         };
     } catch (err) {
         console.error(`Error calculating stats for user ${userId}:`, err);
@@ -131,6 +141,15 @@ async function calculateLivePlayCapperStats(userId) {
             [userId, yesterdayMs, yesterdayCutoffMs, weekendStartMs, nowMs, monthStartMs, yearStartMs, trackingStartMs]
         );
 
+        // Live plays from before the yesterday cutoff that still haven't been settled
+        const { rows: pendingRows } = await db.query(
+            `SELECT COUNT(*) AS count FROM bets
+             WHERE user_id = $1 AND result = 'pending' AND is_live_play = 1
+               AND season_long_bet = false
+               AND CAST(timestamp AS BIGINT) >= $2 AND CAST(timestamp AS BIGINT) < $3`,
+            [userId, trackingStartMs, yesterdayCutoffMs]
+        );
+
         let unitsYesterday = 0;
         let unitsWeekend = 0;
         let unitsMonth = 0;
@@ -153,7 +172,8 @@ async function calculateLivePlayCapperStats(userId) {
             units_won_weekend: Number(unitsWeekend.toFixed(2)),
             units_won_month: Number(unitsMonth.toFixed(2)),
             units_won_ytd: Number(unitsYTD.toFixed(2)),
-            units_won_overall: Number(unitsTotal.toFixed(2))
+            units_won_overall: Number(unitsTotal.toFixed(2)),
+            pending_count: parseInt(pendingRows[0].count, 10)
         };
     } catch (err) {
         console.error(`Error calculating live play stats for user ${userId}:`, err);
